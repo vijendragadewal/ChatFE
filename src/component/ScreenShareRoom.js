@@ -21,7 +21,7 @@ let isScreenShared = false
 
 
 const ChatRoom = ({ io, userName }) => {
-  const socket = io('http://192.168.1.5:3001')
+  const socket = io('http://192.168.1.4:3001')
   const [isConnected, setIsConnected] = useState(socket.connected);
   const [msg, setMsg] = useState('');
   const [messages, setMessages] = useState([]);
@@ -46,33 +46,33 @@ const ChatRoom = ({ io, userName }) => {
       setPeerId(id)
       socket.emit('newConnection', { username: userName, peerId: id })
     })
-    peer.on('call', (call) => {
-      navigator.getUserMedia({ video: true, audio: false }, (mediaStream) => {
-        currentUserVideoRef.current.srcObject = mediaStream
-        currentUserVideoRef.current.play()
-        call.answer(mediaStream)
-        call.on('stream', function (remotestream) {
-          remoteVideoRef.current.srcObject = remotestream
-          remoteVideoRef.current.play()
-          currentPeer = call.peerConnection
-        })
-      })
-    })
+    // peer.on('call', (call) => {
+    //   navigator.getUserMedia({ video: false, audio: false }, (mediaStream) => {
+    //     currentUserVideoRef.current.srcObject = mediaStream
+    //     currentUserVideoRef.current.play()
+    //     call.answer(mediaStream)
+    //     call.on('stream', function (remotestream) {
+    //       remoteVideoRef.current.srcObject = remotestream
+    //       remoteVideoRef.current.play()
+    //       currentPeer = call.peerConnection
+    //     })
+    //   })
+    // })
     peerInstance.current = peer
   }, []);
 
-  const callPeer = (remotePeerId) => {
-    navigator.getUserMedia({ video: true, audio: false }, (mediaStream) => {
-      currentUserVideoRef.current.srcObject = mediaStream
-      currentUserVideoRef.current.play()
-      const call = peerInstance.current.call(remotePeerId, mediaStream)
-      call.on('stream', function (remotestream) {
-        remoteVideoRef.current.srcObject = remotestream
-        remoteVideoRef.current.play()
-        currentPeer = call.peerConnection
-      })
-    })
-  }
+  // const callPeer = (remotePeerId) => {
+  //   navigator.getUserMedia({ video: false, audio: false }, (mediaStream) => {
+  //     currentUserVideoRef.current.srcObject = mediaStream
+  //     currentUserVideoRef.current.play()
+  //     const call = peerInstance.current.call(remotePeerId, mediaStream)
+  //     call.on('stream', function (remotestream) {
+  //       remoteVideoRef.current.srcObject = remotestream
+  //       remoteVideoRef.current.play()
+  //       currentPeer = call.peerConnection
+  //     })
+  //   })
+  // }
   useEffect(() => {
     socket.on('connect', () => {
       setIsConnected(true)
@@ -85,12 +85,25 @@ const ChatRoom = ({ io, userName }) => {
       msg.push(mg)
       setMessages(msg)
     })
-    socket.on('recieveScreenShare', async ({ _userName, screenStream }) => {
+    socket.on('screenshot', async (userDetails) => {
+      console.log(userDetails, peerId)
+      if (peerId === userDetails.peerId) {
+        const image = takescreenshot()
+        socket.emit('sendScreenshot', { userName: userDetails.username, imgSrc: image })
+      }
+
+    })
+    socket.on('recieveScreenshot', async ({ _userName, imgSrc }) => {
       if (userName === _userName) {
-        const _screenStream = JSON.parse(screenStream)
-        setVideoSrc(_screenStream)
+        setImgSrc(imgSrc)
       }
     })
+    // socket.on('recieveScreenShare', async ({ _userName, screenStream }) => {
+    //   if (userName === _userName) {
+    //     const _screenStream = JSON.parse(screenStream)
+    //     setVideoSrc(_screenStream)
+    //   }
+    // })
     socket.on('disconnect', () => {
       setIsConnected(false)
       socket.emit('disconnectUser', { username: userName })
@@ -110,7 +123,7 @@ const ChatRoom = ({ io, userName }) => {
           }).catch(err => console.log('error', err))
       }
     })
-    socket.on('receiveScreenshot', (userScreenData) => {
+    socket.on('recieveScreenshot', (userScreenData) => {
       setScreenShotToReqUser(userScreenData.useName)
       setImgSrc(userScreenData.imgSrc)
       setIsQuickView(false)
@@ -146,22 +159,22 @@ const ChatRoom = ({ io, userName }) => {
     setShowLiveUsers(true)
   }
 
-  const screenLiveView = () => {
-    setIsQuickView(false)
-    setShowLiveUsers(true)
-  }
+  // const screenLiveView = () => {
+  //   setIsQuickView(false)
+  //   setShowLiveUsers(true)
+  // }
 
   const onClickLiveUser = (user) => {
     setRemotePeerIdValue(user.peerId)
-    callPeer(user.peerId)
+    // callPeer(user.peerId)
     if (isQuickView) {
       setTimeout(() => {
         socket.emit('takeScreenshot', { userName, peerId: user.peerId })
       }, 2000);
-    } else {
-      setTimeout(() => {
-        socket.emit('takeScreenShare', { userName, peerId: user.peerId })
-      }, 2000);
+      // } else {
+      //   setTimeout(() => {
+      //     socket.emit('takeScreenShare', { userName, peerId: user.peerId })
+      //   }, 2000);
     }
     setIsQuickView(false)
     setShowLiveUsers(false)
@@ -174,7 +187,7 @@ const ChatRoom = ({ io, userName }) => {
       <div className="chat-messages">
         <h2>Welcome {userName}
           <button className="chat-button" onClick={screenShot}>Quick View</button>
-          <button className="chat-button" onClick={screenLiveView}>Live View</button>
+          {/* <button className="chat-button" onClick={screenLiveView}>Live View</button> */}
         </h2>
         <canvas style={{ display: 'none' }} id='canvasImg'></canvas>
         {
